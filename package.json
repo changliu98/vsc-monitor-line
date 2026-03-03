@@ -2,12 +2,16 @@
   "name": "system-monitor",
   "displayName": "System Monitor",
   "description": "Displays CPU, memory, swap, tasks, threads, and running processes — like htop in your status bar",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "local",
   "engines": {
     "vscode": "^1.75.0"
   },
   "categories": ["Other"],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/changliu98/vsc-monitor-line"
+  },
   "activationEvents": ["onStartupFinished"],
   "main": "./out/extension.js",
   "contributes": {
@@ -16,7 +20,22 @@
         "command": "systemMonitor.openPanel",
         "title": "System Monitor: Open Panel"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "System Monitor",
+      "properties": {
+        "systemMonitor.items": {
+          "type": "array",
+          "default": ["cpu", "mem", "swp", "run"],
+          "items": {
+            "type": "string",
+            "enum": ["cpu", "mem", "swp", "run"]
+          },
+          "uniqueItems": true,
+          "description": "Status bar items to display and their order. Remove an entry to hide it, reorder to rearrange."
+        }
+      }
+    }
   },
   "scripts": {
     "compile": "tsc -p ./",

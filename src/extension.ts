@@ -4,11 +4,12 @@ import { getSystemMetrics, getCpuCores, getLoadAvg, getUptime, SystemMetrics, Cp
 let statusBarItem: vscode.StatusBarItem;
 let updateInterval: ReturnType<typeof setInterval> | undefined;
 let panelInstance: vscode.WebviewPanel | undefined;
+let lastMetrics: SystemMetrics | undefined;
+let lastCores: CpuCore[] = [];
 
 export function activate(context: vscode.ExtensionContext): void {
     statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, Number.MIN_SAFE_INTEGER);
-    statusBarItem.command = 'systemMonitor.openPanel';
-    statusBarItem.tooltip = 'System Monitor — click to open panel';
+    statusBarItem.tooltip = 'System Monitor';
     statusBarItem.show();
     context.subscriptions.push(statusBarItem);
 
@@ -20,9 +21,19 @@ export function activate(context: vscode.ExtensionContext): void {
     getSystemMetrics();
     getCpuCores();
 
+    context.subscriptions.push(
+        vscode.workspace.onDidChangeConfiguration(e => {
+            if (e.affectsConfiguration('systemMonitor') && lastMetrics) {
+                updateStatusBar(lastMetrics, lastCores);
+            }
+        })
+    );
+
     updateInterval = setInterval(() => {
         const metrics = getSystemMetrics();
         const cores   = getCpuCores();
+        lastMetrics = metrics;
+        lastCores   = cores;
         updateStatusBar(metrics, cores);
         if (panelInstance) {
             panelInstance.webview.postMessage({
@@ -39,6 +50,9 @@ export function activate(context: vscode.ExtensionContext): void {
 }
 
 function updateStatusBar(m: SystemMetrics, cores: CpuCore[]): void {
+    const items = vscode.workspace.getConfiguration('systemMonitor')
+        .get<string[]>('items', ['cpu', 'mem', 'swp', 'run']);
+
     const cpu  = String(m.cpuPercent).padStart(3);
     const memU = String(m.memUsedGB).padStart(5);
     const memT = String(m.memTotalGB).padStart(5);
@@ -51,8 +65,16 @@ function updateStatusBar(m: SystemMetrics, cores: CpuCore[]): void {
         : '';
     const freqPart = avgGHz ? `  ${avgGHz}` : '';
 
-    statusBarItem.text =
-        `$(chip)${cpu}%${freqPart}    $(server)${memU}/${memT}G    $(archive)${swpU}/${swpT}G    $(run)${m.running}`;
+    const parts: string[] = [];
+    for (const item of items) {
+        switch (item) {
+            case 'cpu': parts.push(`$(chip)${cpu}%${freqPart}`); break;
+            case 'mem': parts.push(`$(server)${memU}/${memT}G`); break;
+            case 'swp': parts.push(`$(archive)${swpU}/${swpT}G`); break;
+            case 'run': parts.push(`$(run)${m.running}`); break;
+        }
+    }
+    statusBarItem.text = parts.join('    ');
 }
 
 function openPanel(): void {
