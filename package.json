@@ -2,7 +2,7 @@
   "name": "system-monitor",
   "displayName": "System Monitor",
   "description": "Displays CPU, memory, swap, tasks, threads, and running processes — like htop in your status bar",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "publisher": "local",
   "engines": {
     "vscode": "^1.75.0"
@@ -29,10 +29,10 @@
           "default": ["cpu", "mem", "swp", "run"],
           "items": {
             "type": "string",
-            "enum": ["cpu", "mem", "swp", "run"]
+            "enum": ["cpu", "mem", "swp", "run", "temp", "fan"]
           },
           "uniqueItems": true,
-          "description": "Status bar items to display and their order. Remove an entry to hide it, reorder to rearrange."
+          "description": "Status bar items to display and their order. Remove an entry to hide it, reorder to rearrange. 'temp' (CPU temperature) and 'fan' (fan RPM) are Linux-only."
         }
       }
     }

@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { getSystemMetrics, getCpuCores, getLoadAvg, getUptime, SystemMetrics, CpuCore } from './systemMetrics';
+import { getSystemMetrics, getCpuCores, getLoadAvg, getUptime, getCpuTemp, getFanSpeed, SystemMetrics, CpuCore } from './systemMetrics';
 
 let statusBarItem: vscode.StatusBarItem;
 let updateInterval: ReturnType<typeof setInterval> | undefined;
@@ -54,10 +54,10 @@ function updateStatusBar(m: SystemMetrics, cores: CpuCore[]): void {
         .get<string[]>('items', ['cpu', 'mem', 'swp', 'run']);
 
     const cpu  = String(m.cpuPercent).padStart(3);
-    const memU = String(m.memUsedGB).padStart(5);
-    const memT = String(m.memTotalGB).padStart(5);
-    const swpU = String(m.swapUsedGB).padStart(4);
-    const swpT = String(m.swapTotalGB).padStart(4);
+    const memU = m.memUsedGB.toFixed(2).padStart(6);
+    const memT = m.memTotalGB.toFixed(2).padStart(6);
+    const swpU = m.swapUsedGB.toFixed(2).padStart(5);
+    const swpT = m.swapTotalGB.toFixed(2).padStart(5);
 
     const freqCores = cores.filter(c => c.freqMHz > 0);
     const avgGHz = freqCores.length > 0
@@ -72,6 +72,8 @@ function updateStatusBar(m: SystemMetrics, cores: CpuCore[]): void {
             case 'mem': parts.push(`$(server)${memU}/${memT}G`); break;
             case 'swp': parts.push(`$(archive)${swpU}/${swpT}G`); break;
             case 'run': parts.push(`$(run)${m.running}`); break;
+            case 'temp': { const t = getCpuTemp(); if (t >= 0) { parts.push(`$(thermometer)${t}°C`); } break; }
+            case 'fan':  { const f = getFanSpeed(); if (f >= 0) { parts.push(`$(dashboard)${f}rpm`); } break; }
         }
     }
     statusBarItem.text = parts.join('    ');
