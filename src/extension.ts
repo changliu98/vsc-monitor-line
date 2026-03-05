@@ -50,8 +50,18 @@ export function activate(context: vscode.ExtensionContext): void {
 }
 
 function updateStatusBar(m: SystemMetrics, cores: CpuCore[]): void {
-    const items = vscode.workspace.getConfiguration('systemMonitor')
-        .get<string[]>('items', ['cpu', 'mem', 'swp', 'run']);
+    const config = vscode.workspace.getConfiguration('systemMonitor');
+    const items  = config.get<string[]>('items', ['cpu', 'mem', 'swp', 'run']);
+    const iconsConfig = config.get<Record<string, string>>('icons', {});
+
+    const defaults: Record<string, string> = {
+        cpu: 'chip', mem: 'server', swp: 'archive',
+        run: 'run',  temp: 'thermometer', fan: 'dashboard',
+    };
+    const ico = (key: string) => {
+        const name = iconsConfig[key] ?? defaults[key] ?? '';
+        return name ? `$(${name})` : '';
+    };
 
     const cpu  = String(m.cpuPercent).padStart(3);
     const memU = m.memUsedGB.toFixed(2).padStart(6);
@@ -68,12 +78,12 @@ function updateStatusBar(m: SystemMetrics, cores: CpuCore[]): void {
     const parts: string[] = [];
     for (const item of items) {
         switch (item) {
-            case 'cpu': parts.push(`$(chip)${cpu}%${freqPart}`); break;
-            case 'mem': parts.push(`$(server)${memU}/${memT}G`); break;
-            case 'swp': parts.push(`$(archive)${swpU}/${swpT}G`); break;
-            case 'run': parts.push(`$(run)${m.running}`); break;
-            case 'temp': { const t = getCpuTemp(); if (t >= 0) { parts.push(`$(thermometer)${t}°C`); } break; }
-            case 'fan':  { const f = getFanSpeed(); if (f >= 0) { parts.push(`$(dashboard)${f}rpm`); } break; }
+            case 'cpu': parts.push(`${ico('cpu')}${cpu}%${freqPart}`); break;
+            case 'mem': parts.push(`${ico('mem')}${memU}/${memT}G`); break;
+            case 'swp': parts.push(`${ico('swp')}${swpU}/${swpT}G`); break;
+            case 'run': parts.push(`${ico('run')}${m.running}`); break;
+            case 'temp': { const t = getCpuTemp(); if (t >= 0) { parts.push(`${ico('temp')}${t}°C`); } break; }
+            case 'fan':  { const f = getFanSpeed(); if (f >= 0) { parts.push(`${ico('fan')}${f}rpm`); } break; }
         }
     }
     statusBarItem.text = parts.join('    ');

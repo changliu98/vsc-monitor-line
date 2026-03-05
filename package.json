@@ -1,7 +1,7 @@
 {
   "name": "system-monitor",
   "displayName": "System Monitor",
-  "description": "Displays CPU, memory, swap, tasks, threads, and running processes — like htop in your status bar",
+  "description": "htop like status bar: CPU usage & frequency, memory, swap, temperature, fan speed",
   "version": "0.0.3",
   "publisher": "local",
   "engines": {
@@ -33,6 +33,27 @@
           },
           "uniqueItems": true,
           "description": "Status bar items to display and their order. Remove an entry to hide it, reorder to rearrange. 'temp' (CPU temperature) and 'fan' (fan RPM) are Linux-only."
+        },
+        "systemMonitor.icons": {
+          "type": "object",
+          "default": {
+            "cpu":  "chip",
+            "mem":  "server",
+            "swp":  "archive",
+            "run":  "run",
+            "temp": "thermometer",
+            "fan":  "dashboard"
+          },
+          "properties": {
+            "cpu":  { "type": "string", "default": "chip" },
+            "mem":  { "type": "string", "default": "server" },
+            "swp":  { "type": "string", "default": "archive" },
+            "run":  { "type": "string", "default": "run" },
+            "temp": { "type": "string", "default": "thermometer" },
+            "fan":  { "type": "string", "default": "dashboard" }
+          },
+          "additionalProperties": false,
+          "description": "Codicon name for each status bar item. Use any name from https://microsoft.github.io/vscode-codicons/dist/codicon.html (without the '$()' wrapper). Set to empty string to show no icon."
         }
       }
     }
