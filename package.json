@@ -2,7 +2,7 @@
   "name": "resource-monitor-statusbar",
   "displayName": "Resource Monitor Statusbar",
   "description": "htop like status bar: CPU usage & frequency, memory, swap, temperature, fan speed",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publisher": "changliu98",
   "engines": {
     "vscode": "^1.75.0"
