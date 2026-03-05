@@ -2,7 +2,8 @@
 set -euo pipefail
 
 VERSION=$(grep '"version"' package.json | sed 's/[^0-9\.]//g')
-VSIX="system-monitor-${VERSION}.vsix"
+NAME=$(grep '"name"' package.json | sed 's/.*": "\(.*\)".*/\1/')
+VSIX="${NAME}-${VERSION}.vsix"
 
 echo "→ Building in Docker (version ${VERSION})..."
 docker build -t vsc-monitor-builder -f Dockerfile.build .
