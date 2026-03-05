@@ -59,7 +59,8 @@ function updateStatusBar(m: SystemMetrics, cores: CpuCore[]): void {
         run: 'run',  temp: 'thermometer', fan: 'dashboard',
     };
     const ico = (key: string) => {
-        const name = iconsConfig[key] ?? defaults[key] ?? '';
+        const raw  = iconsConfig[key] ?? defaults[key] ?? '';
+        const name = raw.replace(/[^a-zA-Z0-9-]/g, ''); // strip anything that could break $() syntax
         return name ? `$(${name})` : '';
     };
 
@@ -117,6 +118,7 @@ function getPanelHtml(): string {
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { height: 100%; background: #1a1a1a; color: #d0d0d0; font-family: 'Courier New', monospace; font-size: 13px; }
