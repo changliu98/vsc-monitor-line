@@ -2,7 +2,7 @@
   "name": "system-monitor",
   "displayName": "System Monitor",
   "description": "htop like status bar: CPU usage & frequency, memory, swap, temperature, fan speed",
-  "version": "0.0.3",
+  "version": "1.0.0",
   "publisher": "local",
   "engines": {
     "vscode": "^1.75.0"
@@ -26,10 +26,10 @@
       "properties": {
         "systemMonitor.items": {
           "type": "array",
-          "default": ["cpu", "mem", "swp", "run"],
+          "default": ["cpu", "freq", "mem", "swp", "run"],
           "items": {
             "type": "string",
-            "enum": ["cpu", "mem", "swp", "run", "temp", "fan"]
+            "enum": ["cpu", "freq", "mem", "swp", "run", "temp", "fan"]
           },
           "uniqueItems": true,
           "description": "Status bar items to display and their order. Remove an entry to hide it, reorder to rearrange. 'temp' (CPU temperature) and 'fan' (fan RPM) are Linux-only."
@@ -38,6 +38,7 @@
           "type": "object",
           "default": {
             "cpu":  "chip",
+            "freq": "pulse",
             "mem":  "server",
             "swp":  "archive",
             "run":  "run",
@@ -46,6 +47,7 @@
           },
           "properties": {
             "cpu":  { "type": "string", "default": "chip" },
+            "freq": { "type": "string", "default": "pulse" },
             "mem":  { "type": "string", "default": "server" },
             "swp":  { "type": "string", "default": "archive" },
             "run":  { "type": "string", "default": "run" },

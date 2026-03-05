@@ -56,7 +56,7 @@ function updateStatusBar(m: SystemMetrics, cores: CpuCore[]): void {
 
     const defaults: Record<string, string> = {
         cpu: 'chip', mem: 'server', swp: 'archive',
-        run: 'run',  temp: 'thermometer', fan: 'dashboard',
+        run: 'run',  temp: 'thermometer', fan: 'dashboard', freq: 'pulse',
     };
     const ico = (key: string) => {
         const raw  = iconsConfig[key] ?? defaults[key] ?? '';
@@ -74,12 +74,12 @@ function updateStatusBar(m: SystemMetrics, cores: CpuCore[]): void {
     const avgGHz = freqCores.length > 0
         ? (freqCores.reduce((s, c) => s + c.freqMHz, 0) / freqCores.length / 1000).toFixed(2) + 'GHz'
         : '';
-    const freqPart = avgGHz ? `  ${avgGHz}` : '';
 
     const parts: string[] = [];
     for (const item of items) {
         switch (item) {
-            case 'cpu': parts.push(`${ico('cpu')}${cpu}%${freqPart}`); break;
+            case 'cpu':  parts.push(`${ico('cpu')}${cpu}%`); break;
+            case 'freq': { if (avgGHz) { parts.push(`${ico('freq')}${avgGHz}`); } break; }
             case 'mem': parts.push(`${ico('mem')}${memU}/${memT}G`); break;
             case 'swp': parts.push(`${ico('swp')}${swpU}/${swpT}G`); break;
             case 'run': parts.push(`${ico('run')}${m.running}`); break;
