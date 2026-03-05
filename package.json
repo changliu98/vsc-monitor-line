@@ -1,6 +1,6 @@
 {
-  "name": "system-monitor",
-  "displayName": "System Monitor",
+  "name": "system-resource-monitor",
+  "displayName": "System Resource Monitor",
   "description": "htop like status bar: CPU usage & frequency, memory, swap, temperature, fan speed",
   "version": "1.0.0",
   "publisher": "changliu98",
