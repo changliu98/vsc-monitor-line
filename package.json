@@ -12,6 +12,7 @@
     "type": "git",
     "url": "https://github.com/changliu98/vsc-monitor-line"
   },
+  "icon": "icon.png",
   "activationEvents": ["onStartupFinished"],
   "main": "./out/extension.js",
   "contributes": {
