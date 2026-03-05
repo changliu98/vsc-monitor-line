@@ -1,0 +1,14 @@
+FROM node:20-alpine
+
+WORKDIR /build
+
+# Copy only what the build needs — no host node_modules, no secrets
+COPY package.json tsconfig.json .vscodeignore ./
+COPY src/ ./src/
+
+# --ignore-scripts prevents postinstall scripts from running
+RUN npm install --ignore-scripts
+
+RUN npm run compile
+
+RUN npx --yes @vscode/vsce package --allow-missing-repository
