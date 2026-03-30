@@ -260,6 +260,74 @@ export function getFanSpeed(): number {
     return -1;
 }
 
+// ── GPU (NVIDIA / AMD) ───────────────────────────────────────────
+
+export interface GpuMetrics {
+    gpuPercent: number;    // -1 if unavailable
+    vramUsedGB: number;
+    vramTotalGB: number;
+}
+
+let gpuCache: (GpuMetrics & { ts: number }) | null = null;
+let amdGpuPath: string | null | undefined = undefined; // undefined = not yet searched
+
+function discoverAmdGpu(): void {
+    amdGpuPath = null;
+    try {
+        for (const card of fs.readdirSync('/sys/class/drm').filter(f => /^card\d+$/.test(f)).sort()) {
+            const devPath = `/sys/class/drm/${card}/device`;
+            try {
+                fs.accessSync(`${devPath}/gpu_busy_percent`);
+                amdGpuPath = devPath;
+                return;
+            } catch { /* skip */ }
+        }
+    } catch { /* /sys not available */ }
+}
+
+function readAmdGpu(): GpuMetrics | null {
+    if (process.platform !== 'linux') { return null; }
+    if (amdGpuPath === undefined) { discoverAmdGpu(); }
+    if (!amdGpuPath) { return null; }
+    try {
+        const gpuPercent = parseInt(fs.readFileSync(`${amdGpuPath}/gpu_busy_percent`, 'utf8').trim(), 10);
+        const vramUsed = parseInt(fs.readFileSync(`${amdGpuPath}/mem_info_vram_used`, 'utf8').trim(), 10);
+        const vramTotal = parseInt(fs.readFileSync(`${amdGpuPath}/mem_info_vram_total`, 'utf8').trim(), 10);
+        const GB = 1024 ** 3;
+        return {
+            gpuPercent: Math.max(0, Math.min(100, gpuPercent)),
+            vramUsedGB: parseFloat((vramUsed / GB).toFixed(2)),
+            vramTotalGB: parseFloat((vramTotal / GB).toFixed(2)),
+        };
+    } catch { return null; }
+}
+
+function readNvidiaSmi(): GpuMetrics | null {
+    try {
+        const out = execSync(
+            'nvidia-smi --query-gpu=utilization.gpu,memory.used,memory.total --format=csv,noheader,nounits',
+            { encoding: 'utf8', timeout: 4000 }
+        ).trim();
+        const line = out.split('\n')[0];
+        const [gpu, memUsed, memTotal] = line.split(',').map(s => parseFloat(s.trim()));
+        return {
+            gpuPercent: Math.round(gpu),
+            vramUsedGB: parseFloat((memUsed / 1024).toFixed(2)),
+            vramTotalGB: parseFloat((memTotal / 1024).toFixed(2)),
+        };
+    } catch { return null; }
+}
+
+export function getGpuMetrics(): GpuMetrics {
+    const now = Date.now();
+    if (gpuCache && now - gpuCache.ts < 4_000) {
+        return { gpuPercent: gpuCache.gpuPercent, vramUsedGB: gpuCache.vramUsedGB, vramTotalGB: gpuCache.vramTotalGB };
+    }
+    const metrics = readAmdGpu() ?? readNvidiaSmi() ?? { gpuPercent: -1, vramUsedGB: 0, vramTotalGB: 0 };
+    gpuCache = { ...metrics, ts: now };
+    return metrics;
+}
+
 // ── Load avg / Uptime ─────────────────────────────────────────────
 
 export function getLoadAvg(): [number, number, number] {

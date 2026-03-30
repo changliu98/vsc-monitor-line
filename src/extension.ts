@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
-import { getSystemMetrics, getCpuCores, getLoadAvg, getUptime, getCpuTemp, getFanSpeed, SystemMetrics, CpuCore } from './systemMetrics';
+import { getSystemMetrics, getCpuCores, getLoadAvg, getUptime, getCpuTemp, getFanSpeed, getGpuMetrics, SystemMetrics, CpuCore } from './systemMetrics';
 
+let extensionUri: vscode.Uri;
 let statusBarItem: vscode.StatusBarItem;
 let updateInterval: ReturnType<typeof setInterval> | undefined;
 let panelInstance: vscode.WebviewPanel | undefined;
@@ -8,6 +9,7 @@ let lastMetrics: SystemMetrics | undefined;
 let lastCores: CpuCore[] = [];
 
 export function activate(context: vscode.ExtensionContext): void {
+    extensionUri = context.extensionUri;
     statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Left, Number.MIN_SAFE_INTEGER);
     statusBarItem.tooltip = 'System Monitor';
     statusBarItem.show();
@@ -21,15 +23,14 @@ export function activate(context: vscode.ExtensionContext): void {
     getSystemMetrics();
     getCpuCores();
 
-    context.subscriptions.push(
-        vscode.workspace.onDidChangeConfiguration(e => {
-            if (e.affectsConfiguration('systemMonitor') && lastMetrics) {
-                updateStatusBar(lastMetrics, lastCores);
-            }
-        })
-    );
+    function startInterval(): void {
+        if (updateInterval) { clearInterval(updateInterval); }
+        const sec = vscode.workspace.getConfiguration('systemMonitor').get<number>('updateInterval', 2);
+        const ms = Math.max(1000, Math.min(60000, sec * 1000));
+        updateInterval = setInterval(tick, ms);
+    }
 
-    updateInterval = setInterval(() => {
+    function tick(): void {
         const metrics = getSystemMetrics();
         const cores   = getCpuCores();
         lastMetrics = metrics;
@@ -42,25 +43,37 @@ export function activate(context: vscode.ExtensionContext): void {
                 cores,
                 loadAvg: getLoadAvg(),
                 uptime:  getUptime(),
+                gpu:     getGpuMetrics(),
             });
         }
-    }, 2000);
+    }
 
+    context.subscriptions.push(
+        vscode.workspace.onDidChangeConfiguration(e => {
+            if (e.affectsConfiguration('systemMonitor')) {
+                if (lastMetrics) { updateStatusBar(lastMetrics, lastCores); }
+                startInterval();
+            }
+        })
+    );
+
+    startInterval();
     context.subscriptions.push({ dispose: () => clearInterval(updateInterval) });
 }
 
 function updateStatusBar(m: SystemMetrics, cores: CpuCore[]): void {
     const config = vscode.workspace.getConfiguration('systemMonitor');
-    const items  = config.get<string[]>('items', ['cpu', 'mem', 'swp', 'run']);
+    const items  = config.get<string[]>('items', ['cpu', 'freq', 'mem', 'swp', 'run']);
     const iconsConfig = config.get<Record<string, string>>('icons', {});
 
     const defaults: Record<string, string> = {
         cpu: 'chip', mem: 'server', swp: 'archive',
         run: 'run',  temp: 'thermometer', fan: 'dashboard', freq: 'pulse',
+        gpu: 'graph-line', vram: 'database',
     };
     const ico = (key: string) => {
         const raw  = iconsConfig[key] ?? defaults[key] ?? '';
-        const name = raw.replace(/[^a-zA-Z0-9-]/g, ''); // strip anything that could break $() syntax
+        const name = raw.replace(/[^a-zA-Z0-9-]/g, '');
         return name ? `$(${name})` : '';
     };
 
@@ -80,11 +93,13 @@ function updateStatusBar(m: SystemMetrics, cores: CpuCore[]): void {
         switch (item) {
             case 'cpu':  parts.push(`${ico('cpu')}${cpu}%`); break;
             case 'freq': { if (avgGHz) { parts.push(`${ico('freq')}${avgGHz}`); } break; }
-            case 'mem': parts.push(`${ico('mem')}${memU}/${memT}G`); break;
-            case 'swp': parts.push(`${ico('swp')}${swpU}/${swpT}G`); break;
-            case 'run': parts.push(`${ico('run')}${m.running}`); break;
+            case 'mem':  parts.push(`${ico('mem')}${memU}/${memT}G`); break;
+            case 'swp':  parts.push(`${ico('swp')}${swpU}/${swpT}G`); break;
+            case 'run':  parts.push(`${ico('run')}${m.running}`); break;
             case 'temp': { const t = getCpuTemp(); if (t >= 0) { parts.push(`${ico('temp')}${t}°C`); } break; }
             case 'fan':  { const f = getFanSpeed(); if (f >= 0) { parts.push(`${ico('fan')}${f}rpm`); } break; }
+            case 'gpu':  { const g = getGpuMetrics(); if (g.gpuPercent >= 0) { parts.push(`${ico('gpu')}${String(g.gpuPercent).padStart(3)}%`); } break; }
+            case 'vram': { const g = getGpuMetrics(); if (g.gpuPercent >= 0) { const vU = g.vramUsedGB.toFixed(2).padStart(5); const vT = g.vramTotalGB.toFixed(2).padStart(5); parts.push(`${ico('vram')}${vU}/${vT}G`); } break; }
         }
     }
     statusBarItem.text = parts.join('    ');
@@ -98,6 +113,7 @@ function openPanel(): void {
         vscode.ViewColumn.One,
         { enableScripts: true, retainContextWhenHidden: true }
     );
+    panelInstance.iconPath = vscode.Uri.joinPath(extensionUri, 'icon.png');
     panelInstance.onDidDispose(() => { panelInstance = undefined; });
     panelInstance.webview.html = getPanelHtml();
 
@@ -109,6 +125,7 @@ function openPanel(): void {
             cores:   getCpuCores(),
             loadAvg: getLoadAvg(),
             uptime:  getUptime(),
+            gpu:     getGpuMetrics(),
         });
     }, 300);
 }
@@ -199,6 +216,26 @@ function getPanelHtml(): string {
   <span class="bar-right" id="swp-info">— / —</span>
 </div>
 
+<div class="bar-row" id="gpu-row" style="display:none">
+  <span class="bar-label">Gpu</span>
+  <span class="bracket">[</span>
+  <div class="bar-track">
+    <div class="bar-fill" id="gpu-fill" style="width:0%;background:#3fb950"></div>
+  </div>
+  <span class="bracket">]</span>
+  <span class="bar-right" id="gpu-info">—</span>
+</div>
+
+<div class="bar-row" id="vram-row" style="display:none">
+  <span class="bar-label">Vrm</span>
+  <span class="bracket">[</span>
+  <div class="bar-track">
+    <div class="bar-fill" id="vram-fill" style="width:0%;background:#d2a8ff"></div>
+  </div>
+  <span class="bracket">]</span>
+  <span class="bar-right" id="vram-info">— / —</span>
+</div>
+
 <hr class="divider">
 
 <div id="info-row">
@@ -259,6 +296,20 @@ function getPanelHtml(): string {
     const swpPct = m.swapTotalGB > 0 ? (m.swapUsedGB / m.swapTotalGB * 100) : 0;
     document.getElementById('swp-fill').style.width = swpPct.toFixed(1) + '%';
     document.getElementById('swp-info').textContent = m.swapUsedGB + 'G / ' + m.swapTotalGB + 'G';
+
+    // ── gpu / vram ────────────────────────────
+    if (data.gpu && data.gpu.gpuPercent >= 0) {
+      const g = data.gpu;
+      document.getElementById('gpu-row').style.display = '';
+      document.getElementById('gpu-fill').style.width = g.gpuPercent + '%';
+      document.getElementById('gpu-fill').style.backgroundColor = barColor(g.gpuPercent);
+      document.getElementById('gpu-info').textContent = String(g.gpuPercent).padStart(3) + '%';
+
+      document.getElementById('vram-row').style.display = '';
+      const vramPct = g.vramTotalGB > 0 ? (g.vramUsedGB / g.vramTotalGB * 100) : 0;
+      document.getElementById('vram-fill').style.width = vramPct.toFixed(1) + '%';
+      document.getElementById('vram-info').textContent = g.vramUsedGB + 'G / ' + g.vramTotalGB + 'G';
+    }
 
     // ── info line ──────────────────────────────
     document.getElementById('tasks-span').textContent  = 'Tasks: ' + m.tasks + ', ' + m.running + ' running';
